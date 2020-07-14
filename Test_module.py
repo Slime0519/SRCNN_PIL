@@ -35,19 +35,20 @@ if __name__=="__main__":
     #SRCNN_Test.load_state_dict(checkpoint)
     SRCNN_Test = SRCNN_Test.to(device)
     print(SRCNN_Test)
-
+    SRCNN_Test = torch.load(os.path.join("modeldata","model_299_epoch.pth"))
+    """
     state_dict = SRCNN_Test.state_dict()
-    for n, p in torch.load(os.path.join("checkpoint","srcnn_x2.pth")).items():
+    for n, p in torch.load(os.path.join("modeldata","model_299_epoch.pth")).items():
         if n in state_dict.keys():
             state_dict[n].copy_(p)
         else:
             raise KeyError
-
+    """
 
     SRCNN_Test.eval()
 
     #generate image list(original, distorted(input), labeled)
-    filelist = glob.glob(os.path.join("Train","*.bmp"))
+    filelist = glob.glob(os.path.join("data/Test","*.jpg"))
     print(filelist)
 
 
@@ -55,7 +56,7 @@ if __name__=="__main__":
     Test_label = []
     Test_input = []
     for filename in filelist:
-        image = gen_imageset.load_img(filename)
+        image = gen_imageset.load_img_test(filename)
         #plt.imshow(image)
        # plt.show()
         image_list.append(image)
@@ -82,8 +83,8 @@ if __name__=="__main__":
         output_edit = output_edit.squeeze(0).squeeze(0)
 
         label = Test_label[i]
-        Tot_PSNR += PSNR(output_edit,label[8:-8,8:-8] )
-
+        #Tot_PSNR += PSNR(output_edit,label[8:-8,8:-8] )
+        Tot_PSNR += PSNR(output_edit, label[:-1,:-1])
         output_list.append(output_edit)
         """
         if(i%30 == 0):
@@ -134,7 +135,9 @@ if __name__=="__main__":
             plt.imshow(cropped_image[1, :, :])
             plt.show()
         """
-        concated_image = np.concatenate((temp_output_image,cropped_image),axis=0)
+        print("tempout : {}".format(temp_output_image[0,4:-3,4:-3].shape))
+        print("cropped : {}".format(cropped_image.shape))
+        concated_image = np.concatenate((np.expand_dims(temp_output_image[0,4:-3,4:-3],axis=0),cropped_image),axis=0)
         concated_image = np.transpose(concated_image,(1,2,0))
         plt.imshow(concated_image)
         plt.show()
@@ -147,7 +150,9 @@ if __name__=="__main__":
 
 
  #   print(np.array(output_imagelist).shape)
-    plt.imshow(output_imagelist[2])
+    temp_image = cv2.normalize(np.squeeze(output_imagelist),None,alpha=0,beta=1,norm_type=cv2.NORM_MINMAX,dtype=cv2.CV_32F)
+    print(temp_image)
+    plt.imshow(temp_image)
     plt.show()
 
     avg_PSNR = Tot_PSNR/len(Test_input)

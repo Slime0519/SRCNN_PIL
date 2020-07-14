@@ -19,6 +19,21 @@ def load_img(filepath):
     return y
 
 
+def load_img_test(filepath):
+    image = cv2.imread(filepath)
+    image = cv2.cvtColor(image, cv2.COLOR_BGR2YCR_CB) # RGB->YCbCr
+  #  image = image[:,:,0]
+    return image
+
+
+
+def rescaling_img(img, scaling_factor = 2):
+    label = img.astype('float')/255.
+    downscaled_image = cv2.resize(img, dsize=(0, 0), fx=1/scaling_factor, fy=1/scaling_factor, interpolation=cv2.INTER_LINEAR)
+    input = cv2.resize(downscaled_image, dsize = (0,0), fx = scaling_factor, fy = scaling_factor, interpolation=cv2.INTER_CUBIC)
+    return input, label
+
+
 def download_bsd300(dest="dataset"):
     output_image_dir = os.path.join(dest, "BSDS300/images")
 
@@ -54,28 +69,31 @@ def input_transform(imageset,scaling_factor =2 ):
     input_patches = np.zeros((0,32,32))
     target_patches = np.zeros((0,32,32))
     for image in imageset:
-        image_width = image.shape[0]
-        image_height = image.shape[1]
+        image_height = image.shape[0]
+        image_width = image.shape[1]
         for i in range(0,image_height-CROP_SIZE,STRIDE):
             for j in range(0,image_width-CROP_SIZE,STRIDE):
+               # print("i+CROP : {}, j+CROP : {}".format(i+CROP_SIZE,j+CROP_SIZE))
                 cropped_patch = np.copy(image[i:i+CROP_SIZE,j:j+CROP_SIZE])
                 cropped_patch_expanded = np.expand_dims(cropped_patch,axis=0)
-                print(cropped_patch.shape)
-                print(target_patches.shape)
+
+                print("{}/{},{}/{} : {}".format(i, image_height, j, image_width, cropped_patch_expanded.shape))
+              #  print(target_patches.shape)
                 target_patches = np.append(target_patches,cropped_patch_expanded,axis=0)
+
 
                 #downscaling and upscaling
                 downscaled_patch = cv2.resize(cropped_patch,dsize=(int(CROP_SIZE/scaling_factor),int(CROP_SIZE/scaling_factor)),interpolation=cv2.INTER_CUBIC)
                 blurred_patch = cv2.GaussianBlur(downscaled_patch,(5,5),0)
                 recoverd_patch = np.copy(cv2.resize(blurred_patch,dsize=(CROP_SIZE,CROP_SIZE),interpolation=cv2.INTER_CUBIC))
                 recoverd_patch_expanded = np.expand_dims(recoverd_patch,axis=0)
-                input_patches = np.append(input_patches,recoverd_patch_expanded)
+                input_patches = np.append(input_patches,recoverd_patch_expanded,axis=0)
 
     return input_patches, target_patches
 
 
 class DatasetGenerator(Dataset):
-    def __init__(self,dirpath,  scaling_factor, train = 1):
+    def __init__(self,dirpath,  scaling_factor, train = 1, iscropped= 0):
         super(DatasetGenerator, self).__init__()
         if train == 1:
             dirpath = os.path.join(dirpath, "train")
@@ -107,8 +125,16 @@ class DatasetGenerator(Dataset):
         self.inputimagelist = np.array(self.inputimagelist)
        # self.inputimagelist = self.inputimagelist.astype(float)
         self.inputimagelist /=255.
-        self.inputlist, self.targetlist = input_transform(self.inputimagelist)
+
+        if iscropped:
+            self.datasetlist =  np.load("cropped_dataset.npy")
+        else:
+            self.datasetlist = input_transform(self.inputimagelist)
+            np.save("./cropped_dataset.npy",self.datasetlist)
+
+        self.inputlist, self.targetlist= self.datasetlist[0], self.datasetlist[1]
         #print(self.inputimagelist)
+
 
     def __getitem__(self, index):
         #input = load_img(self.image_filenames[index])
