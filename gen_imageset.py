@@ -28,10 +28,16 @@ def load_img_test(filepath):
 
 
 def rescaling_img(img, scaling_factor = 2):
-    label = img.astype('float')/255.
-    downscaled_image = cv2.resize(img, dsize=(0, 0), fx=1/scaling_factor, fy=1/scaling_factor, interpolation=cv2.INTER_LINEAR)
+    label = np.copy(img)
+    downscaled_image = cv2.resize(img, dsize=(0, 0), fx=1/scaling_factor, fy=1/scaling_factor, interpolation=cv2.INTER_CUBIC)
     input = cv2.resize(downscaled_image, dsize = (0,0), fx = scaling_factor, fy = scaling_factor, interpolation=cv2.INTER_CUBIC)
     return input, label
+
+
+def rescaling_single_img(img, scaling_factor = 2):
+    downscaled_image = cv2.resize(img, dsize=(0, 0), fx=1/scaling_factor, fy=1/scaling_factor, interpolation=cv2.INTER_CUBIC)
+    input = cv2.resize(downscaled_image, dsize = (0,0), fx = scaling_factor, fy = scaling_factor, interpolation=cv2.INTER_CUBIC)
+    return input
 
 
 def download_bsd300(dest="dataset"):

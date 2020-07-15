@@ -10,6 +10,7 @@ import Main_Module
 from gen_imageset import DatasetGenerator,download_bsd300
 import re, glob
 import h5py_dataset
+import matplotlib.pyplot as plt
 
 pretrained = 1
 NUM_EPOCHS = 300
@@ -51,9 +52,12 @@ if __name__ == "__main__":
 
    # optimizer = optim.Adam(Model.parameters(), lr= 1e-4)
 
-    psnr_array = np.zeros((NUM_EPOCHS))
+    eval_psnr_array = np.zeros((NUM_EPOCHS))
+    train_psnr_array = np.zeros((NUM_EPOCHS))
     for epoch_ in range(NUM_EPOCHS):
         epoch_loss =0
+        train_tot_psnr=0
+        print("--------train phase--------")
         for i, batch in enumerate(trainloader):
             input, target = batch[0].to(device), batch[1].to(device)
             optimizer.zero_grad()
@@ -64,13 +68,29 @@ if __name__ == "__main__":
             loss.backward()
             optimizer.step()
             epoch_loss +=loss.item()
-           # print("training")
+            psnr = 10 * np.log10(1 / loss.item())
+            train_tot_psnr += psnr
+            """ print patch
+            temp1 = np.squeeze(input[80].cpu().numpy())
+            temp2 = np.squeeze(target[80].cpu().numpy())
+            plt.imshow(temp1)
+            plt.show()
+            plt.imshow(temp2)
+            plt.show()
+            exit()
+            """
+           # print("Train : {}th PSNR : {}".format(i, psnr))
+        # print("training")
+        avg_psnr = train_tot_psnr / len(trainloader)
+        train_psnr_array[epoch_] = avg_psnr
+        print("Train : Average PSNR : {} dB.".format(avg_psnr))
+        np.save("./train_psnr_array.npy", train_psnr_array)
 
         print("Epoch {}. Training loss: {}".format(epoch_,epoch_loss/len(trainloader)))
 
         #test
-        print("test phase")
-        tot_psnr =0
+        print("--------test phase--------")
+        eval_tot_psnr =0
         with torch.no_grad():
             for i,batch in enumerate(testloader):
                 input, target= batch[0].to(device), batch[1].to(device)
@@ -78,12 +98,41 @@ if __name__ == "__main__":
                 out = model(input)
                 loss = criterion(out, target)
                 psnr = 10* np.log10(1/loss.item())
-                tot_psnr += psnr
-                print("ith PSNR : {}".format(psnr))
+                eval_tot_psnr += psnr
+                print("Eval : {}th PSNR : {}".format(i,psnr))
+
+               #이미지 저장
+                if (epoch_ == 0) & ((i==3) | (i==2)):
+                    plt.imshow(np.squeeze(input[0].cpu().numpy()))
+                    plt.title("original input")
+                    plt.show()
+                    plt.imshow(np.squeeze(target[0].cpu().numpy()))
+                    plt.title("target image")
+                    plt.show()
+                    plt.imshow(np.squeeze(input[0].cpu().numpy()))
+                    plt.title("original input")
+                    plt.savefig("Imagedata/original_input_{}th_image".format(i + 1), dpi=500)
+                    plt.imshow(np.squeeze(target[0].cpu().numpy()))
+                    plt.title("target image")
+                    plt.savefig("Imagedata/target_{}th_image".format(i + 1), dpi=500)
+                    plt.imshow(np.squeeze(out[0].cpu().numpy()))
+                    plt.title("epoch : {}, PSNR : {}".format(epoch_ + 1, psnr))
+                    plt.show()
+                    plt.imshow(np.squeeze(out[0].cpu().numpy()))
+                    plt.title("epoch : {}, PSNR : {}".format(epoch_ + 1, psnr))
+                    plt.savefig("Imagedata/{}th_image_{}th_epoch".format(i + 1, epoch_ + 1), dpi=500)
+                if ((epoch_+1)% 50 == 0) & ((i==3) | (i==2)):
+                    plt.imshow(np.squeeze(out[0].cpu().numpy()))
+                    plt.title("epoch : {}, PSNR : {}".format(epoch_+1,psnr))
+                    plt.show()
+                    plt.imshow(np.squeeze(out[0].cpu().numpy()))
+                    plt.title("epoch : {}, PSNR : {}".format(epoch_ + 1, psnr))
+                    plt.savefig("Imagedata/{}th_image_{}th_epoch".format(i+1,epoch_+1),dpi = 500)
+
            # print(len(testloader))
-            avg_psnr = tot_psnr/len(testloader)
-            psnr_array[epoch_] = avg_psnr
-            print("Average PSNR : {} dB.".format(avg_psnr))
-            np.save("./psnr_array.npy",avg_psnr)
+            avg_psnr = eval_tot_psnr/len(testloader)
+            eval_psnr_array[epoch_] = avg_psnr
+            print("Eval Average PSNR : {} dB.".format(avg_psnr))
+            np.save("./eval_psnr_array.npy",eval_psnr_array)
 
         torch.save(model,os.path.join("modeldata","model_{}_epoch.pth".format(epoch_)))

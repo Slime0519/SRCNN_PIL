@@ -28,7 +28,7 @@ if __name__ =="__main__":
     label = np.array(h5_file.get('hr').get('1'))
 
 
-    print(input[0])
+    print(input)
     print(label.shape)
 
     print(input / 255.)
